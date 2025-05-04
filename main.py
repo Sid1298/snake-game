@@ -1,6 +1,9 @@
 import sys
 import pygame
 import random
+from datetime import datetime
+from database.database_setup import add_new_score, get_top_5_scores, User
+
 
 # Initialize
 pygame.init()
@@ -104,3 +107,133 @@ def capture_username():
 
         pygame.display.flip()
         clock.tick(30)
+# Main game loop
+def game_loop():
+    player_name = capture_username()
+    global snake_pos, snake_body, direction, change_to, food_pos, food_spawn, score
+
+    # Snake setup
+    snake_pos = [100, 60]
+    snake_body = [[100, 60], [80, 60], [60, 60]]
+    direction = 'RIGHT'
+    change_to = direction
+
+    # Food setup
+    food_pos = [random.randrange(0, WIDTH, BLOCK_SIZE), random.randrange(0, HEIGHT, BLOCK_SIZE)]
+    food_spawn = True
+
+    # Score setup
+    score = 0
+
+    running = True
+    while running:
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+            # Control snake with arrow keys
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP and direction != 'DOWN':
+                    change_to = 'UP'
+                elif event.key == pygame.K_DOWN and direction != 'UP':
+                    change_to = 'DOWN'
+                elif event.key == pygame.K_LEFT and direction != 'RIGHT':
+                    change_to = 'LEFT'
+                elif event.key == pygame.K_RIGHT and direction != 'LEFT':
+                    change_to = 'RIGHT'
+
+        # Update direction
+        direction = change_to
+
+        # Move snake head
+        if direction == 'UP':
+            snake_pos[1] -= BLOCK_SIZE
+        elif direction == 'DOWN':
+            snake_pos[1] += BLOCK_SIZE
+        elif direction == 'LEFT':
+            snake_pos[0] -= BLOCK_SIZE
+        elif direction == 'RIGHT':
+            snake_pos[0] += BLOCK_SIZE
+
+        # Wrap snake around the screen (spherical world)
+        if snake_pos[0] >= WIDTH:  # Goes off right side
+            snake_pos[0] = 0
+        elif snake_pos[0] < 0:  # Goes off left side
+            snake_pos[0] = WIDTH - BLOCK_SIZE
+
+        if snake_pos[1] >= HEIGHT:  # Goes off bottom
+            snake_pos[1] = 0
+        elif snake_pos[1] < 0:  # Goes off top
+            snake_pos[1] = HEIGHT - BLOCK_SIZE
+
+        # Insert new head
+        snake_body.insert(0, list(snake_pos))
+
+        # Self-hit condition
+        if snake_pos in snake_body[1:]:
+            running = False  # End the game if the snake hits itself
+
+        # Check if food is eaten
+        if snake_pos == food_pos:
+            food_spawn = False
+            score += 1  # Increase score
+        else:
+            snake_body.pop()
+
+        # Spawn new food if needed
+        if not food_spawn:
+            food_pos = [random.randrange(0, WIDTH, BLOCK_SIZE), random.randrange(0, HEIGHT, BLOCK_SIZE)]
+            food_spawn = True
+
+        # Drawing
+        screen.fill(BLACK)
+
+        # Draw snake
+        for block in snake_body:
+            pygame.draw.rect(screen, GREEN, pygame.Rect(block[0], block[1], BLOCK_SIZE, BLOCK_SIZE))
+
+        # Draw food
+        pygame.draw.rect(screen, RED, pygame.Rect(food_pos[0], food_pos[1], BLOCK_SIZE, BLOCK_SIZE))
+
+        # Display score at top left corner
+        display_text(f"Score: {score}", font, WHITE, 10, 10)
+
+        # Update the display
+        pygame.display.update()
+
+        # Control game speed
+        clock.tick(FPS)
+
+    # Game Over screen (centered text)
+    display_centered_text(f"Game Over! Your score: {score}", big_font, RED, y_offset=-70)
+    display_centered_text("Press Enter to Play Again or ESC to Quit", font, WHITE, y_offset=0)
+    
+    pygame.display.update()
+
+    player = User(name=player_name, score=score, playdate=datetime.now())
+
+    add_new_score(player)
+    top5=[f"{player.name} - {player.score}" for player in get_top_5_scores()]
+    display_centered_text("Top Scores:", font, WHITE, y_offset=30)
+    pygame.display.update()
+    for index, value in enumerate(top5):
+        display_centered_text(value, font=small_font, color=WHITE, y_offset=75+15*index)
+        pygame.display.update()
+
+    # Wait for restart or quit
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:  # Restart game
+                    game_loop()  # Restart the game
+                elif event.key == pygame.K_ESCAPE:  # Quit game
+                    pygame.quit()
+                    quit()
+
+# Start the game loop
+game_loop()
