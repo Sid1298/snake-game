@@ -176,3 +176,6 @@ cython_debug/
 # game scores database
 db.sql
 .DS_Store
+
+# trained agent checkpoints and logs
+player_agent/models/
