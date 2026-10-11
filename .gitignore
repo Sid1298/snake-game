@@ -175,3 +175,4 @@ cython_debug/
 
 # game scores database
 db.sql
+.DS_Store
